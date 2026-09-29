@@ -1,0 +1,27 @@
+[project]
+name = "calls-transcriptions"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "faster-whisper>=1.2,<2",
+    "filelock>=3.18,<4",
+    "imageio-ffmpeg>=0.6,<1",
+    "streamlit>=1.45,<2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.9",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
