@@ -12,6 +12,7 @@ parser.add_argument(
 )
 parser.add_argument("--language", default="ru", choices=["ru", "en", "auto"])
 parser.add_argument("--model", default="gpt-6-sol")
+parser.add_argument("--codex-command", help="Команда или shell-алиас: codex, codex-s…")
 args = parser.parse_args()
 try:
     print(
@@ -22,6 +23,7 @@ try:
             whisper=args.whisper,
             language=args.language,
             model=args.model,
+            command_name=args.codex_command,
         )
     )
 except Exception as exc:

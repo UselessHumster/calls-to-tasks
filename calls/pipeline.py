@@ -6,7 +6,6 @@ import hashlib
 import json
 import os
 import re
-import shutil
 import subprocess
 import tempfile
 import wave
@@ -16,6 +15,7 @@ from pathlib import Path
 from filelock import FileLock
 
 from calls.formatting import format_tasks
+from calls.launcher import default_command, launch_command
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
@@ -134,18 +134,15 @@ Whisper не размечает говорящих: фраза «я сделаю
 """
 
 
-def codex(prompt: str, model: str, work: Path) -> str:
-    binary = shutil.which("codex")
-    if not binary:
-        raise RuntimeError("Codex CLI не найден в PATH. Установи его и войди через codex-s login.")
+def codex(prompt: str, model: str, work: Path, command_name: str | None = None) -> str:
     env = os.environ.copy()
-    env["CODEX_HOME"] = str(Path(os.environ.get("CALLS_CODEX_HOME", "~/.codex-s")).expanduser())
-    # Use codex-s authentication, but do not inherit its plugins, hooks, or MCP servers.
+    if home := os.environ.get("CALLS_CODEX_HOME"):
+        env["CODEX_HOME"] = str(Path(home).expanduser())
+    # Keep normal Codex authentication unless explicitly overridden by the user.
     with tempfile.TemporaryDirectory(prefix="summary-", dir=work) as temporary:
         directory = Path(temporary)
         output = directory / "answer.md"
         command = [
-            binary,
             "exec",
             "--ignore-user-config",
             "--ignore-rules",
@@ -179,6 +176,7 @@ def codex(prompt: str, model: str, work: Path) -> str:
             str(output),
             "-",
         ]
+        command = launch_command(command_name or default_command(), command)
         try:
             result = subprocess.run(
                 command, input=prompt, text=True, capture_output=True, env=env, timeout=1200
@@ -197,7 +195,14 @@ def codex(prompt: str, model: str, work: Path) -> str:
         return answer
 
 
-def summarize(transcript: str, context: str, model: str, work: Path, progress: Progress) -> str:
+def summarize(
+    transcript: str,
+    context: str,
+    model: str,
+    work: Path,
+    progress: Progress,
+    command_name: str | None = None,
+) -> str:
     def ask(text: str, instruction: str) -> str:
         prompt = (
             RULES
@@ -210,7 +215,7 @@ def summarize(transcript: str, context: str, model: str, work: Path, progress: P
         cached = work / f"summary-{key}.txt"
         if cached.exists():
             return cached.read_text(encoding="utf-8")
-        answer = codex(prompt, model, work)
+        answer = codex(prompt, model, work, command_name)
         atomic_text(cached, answer)
         return answer
 
@@ -261,6 +266,7 @@ def process(
     whisper: str = "small",
     language: str = "ru",
     model: str = "gpt-6-sol",
+    command_name: str | None = None,
     progress: Progress = print,
 ) -> Path:
     source = source.expanduser().resolve()
@@ -282,7 +288,7 @@ def process(
                 extract_audio(source, audio)
                 transcript = transcribe(audio, whisper, language, progress)
                 atomic_text(transcript_file, transcript)
-        summary = format_tasks(summarize(transcript, context, model, work, progress))
+        summary = format_tasks(summarize(transcript, context, model, work, progress, command_name))
         title = " ".join((title or source.stem).split())
         safe_name = re.sub(r"[^\w. -]", "_", title, flags=re.UNICODE)[:100].strip(". ") or "Созвон"
         settings = hashlib.sha256(

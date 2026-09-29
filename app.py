@@ -5,6 +5,7 @@ import streamlit as st
 from filelock import Timeout
 
 from calls.formatting import format_tasks
+from calls.launcher import default_command
 from calls.pipeline import DATA, process
 
 st.set_page_config(page_title="После созвона", page_icon="✳️", layout="wide")
@@ -82,6 +83,10 @@ with main:
             )
             language = st.selectbox("Язык записи", ["ru", "auto", "en"])
             model = st.text_input("Модель Codex", value="gpt-6-sol")
+            command_name = st.text_input("Команда или рабочий алиас", value=default_command())
+            st.caption(
+                "По умолчанию codex. Для рабочего аккаунта можно указать, например, codex-s."
+            )
         run = st.button(
             "Собрать протокол  ↗",
             type="primary",
@@ -115,12 +120,15 @@ if run:
         try:
             if not model.strip():
                 raise ValueError("Укажи модель Codex.")
+            if not command_name.strip():
+                raise ValueError("Укажи команду Codex.")
             options = dict(
                 title=title,
                 context=context,
                 whisper=whisper,
                 language=language,
                 model=model.strip(),
+                command_name=command_name.strip(),
                 progress=stage.write,
             )
             if uploaded is not None:

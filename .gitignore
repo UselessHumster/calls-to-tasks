@@ -7,3 +7,4 @@ data/
 .playwright-mcp/
 .env
 .env.*
+settings.local.toml
